@@ -4,7 +4,9 @@ pipeline {
     stages {
         stage('Test') {
             steps {
-                bat 'go test ./...'
+                dir('gudang-service') {
+                    bat 'go test ./...'
+                }
             }
         }
     }
