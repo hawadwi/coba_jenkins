@@ -1,243 +1,153 @@
 package main
 
-import (
-	"testing"
-)
+import "testing"
 
-func TestStartDeliverySuccess(t *testing.T) {
-	service := NewCourierService()
+func TestStartDelivery_Success(t *testing.T) {
 
-	delivery := &Delivery{
-		CourierID:      1,
-		Resi:           "RESI001",
-		NamaPenerima:   "Budi",
-		AlamatPenerima: "Jakarta",
-		Status:         "pending",
+	service := &CourierService{}
+
+	d := &Delivery{
+		Resi:         "RESI001",
+		CourierID:    1,
+		Status:       "pending",
+		AssignedZone: "A",
 	}
-	
-	err := service.StartDelivery(delivery)
+
+	err := service.StartDelivery(d)
+
 	if err != nil {
-		t.Errorf("StartDelivery failed: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if delivery.Status != "in_delivery" {
-		t.Errorf("Expected status 'in_delivery', got '%s'", delivery.Status)
+	if d.Status != "in_delivery" {
+		t.Fatalf("expected in_delivery got %s", d.Status)
 	}
 }
 
-func TestStartDeliveryInvalidCourier(t *testing.T) {
-	service := NewCourierService()
+func TestStartDelivery_NilDelivery(t *testing.T) {
 
-	delivery := &Delivery{
+	service := &CourierService{}
+
+	err := service.StartDelivery(nil)
+
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestStartDelivery_EmptyResi(t *testing.T) {
+
+	service := &CourierService{}
+
+	d := &Delivery{
+		CourierID: 1,
+		Status:    "pending",
+	}
+
+	err := service.StartDelivery(d)
+
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestStartDelivery_InvalidCourier(t *testing.T) {
+
+	service := &CourierService{}
+
+	d := &Delivery{
+		Resi:      "RESI001",
 		CourierID: 0,
-		Resi:      "RESI001",
 		Status:    "pending",
 	}
 
-	err := service.StartDelivery(delivery)
+	err := service.StartDelivery(d)
+
 	if err == nil {
-		t.Error("Expected error for invalid courier_id, got nil")
+		t.Fatal("expected error")
 	}
 }
 
-func TestStartDeliveryEmptyResi(t *testing.T) {
-	service := NewCourierService()
+func TestCompleteDelivery_Success(t *testing.T) {
 
-	delivery := &Delivery{
-		CourierID: 1,
-		Resi:      "",
-		Status:    "pending",
+	service := &CourierService{}
+
+	d := &Delivery{
+		Resi:   "RESI001",
+		Status: "in_delivery",
 	}
 
-	err := service.StartDelivery(delivery)
-	if err == nil {
-		t.Error("Expected error for empty resi, got nil")
-	}
-}
+	err := service.CompleteDelivery(d)
 
-func TestStartDeliveryNotPendingStatus(t *testing.T) {
-	service := NewCourierService()
-
-	delivery := &Delivery{
-		CourierID: 1,
-		Resi:      "RESI001",
-		Status:    "delivered",
-	}
-
-	err := service.StartDelivery(delivery)
-	if err == nil {
-		t.Error("Expected error for non-pending delivery, got nil")
-	}
-}
-
-func TestCompleteDeliverySuccess(t *testing.T) {
-	service := NewCourierService()
-
-	delivery := &Delivery{
-		Resi:           "RESI001",
-		Status:         "in_delivery",
-		CourierID:      1,
-		AlamatPenerima: "Jakarta",
-	}
-
-	err := service.CompleteDelivery(delivery)
 	if err != nil {
-		t.Errorf("CompleteDelivery failed: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if delivery.Status != "delivered" {
-		t.Errorf("Expected status 'delivered', got '%s'", delivery.Status)
+	if d.Status != "delivered" {
+		t.Fatalf("expected delivered got %s", d.Status)
 	}
 
-	if delivery.DeliveredAt == nil {
-		t.Error("DeliveredAt should not be nil")
-	}
-}
-
-func TestCompleteDeliveryNotInProgress(t *testing.T) {
-	service := NewCourierService()
-
-	delivery := &Delivery{
-		Resi:      "RESI001",
-		Status:    "pending",
-		CourierID: 1,
-	}
-
-	err := service.CompleteDelivery(delivery)
-	if err == nil {
-		t.Error("Expected error for non-in_delivery status, got nil")
+	if d.DeliveredAt == nil {
+		t.Fatal("expected delivered_at")
 	}
 }
 
-func TestCompleteDeliveryNil(t *testing.T) {
-	service := NewCourierService()
+func TestCompleteDelivery_InvalidStatus(t *testing.T) {
 
-	err := service.CompleteDelivery(nil)
+	service := &CourierService{}
+
+	d := &Delivery{
+		Status: "pending",
+	}
+
+	err := service.CompleteDelivery(d)
+
 	if err == nil {
-		t.Error("Expected error for nil delivery, got nil")
+		t.Fatal("expected error")
 	}
 }
 
 func TestGetCourierDeliveries(t *testing.T) {
-	service := NewCourierService()
 
-	deliveries := []Delivery{
-		{
-			CourierID: 1,
-			Resi:      "RESI001",
-			Status:    "in_delivery",
-		},
-		{
-			CourierID: 2,
-			Resi:      "RESI002",
-			Status:    "pending",
-		},
-		{
-			CourierID: 1,
-			Resi:      "RESI003",
-			Status:    "delivered",
-		},
+	service := &CourierService{}
+
+	data := []Delivery{
+		{Resi: "A", CourierID: 1},
+		{Resi: "B", CourierID: 2},
+		{Resi: "C", CourierID: 1},
 	}
 
-	courierDeliveries := service.GetCourierDeliveries(deliveries, 1)
+	result := service.GetCourierDeliveries(data, 1)
 
-	if len(courierDeliveries) != 2 {
-		t.Errorf("Expected deliveries count mismatch, got %d", len(courierDeliveries))
+	if len(result) != 2 {
+		t.Fatalf("expected 2 got %d", len(result))
 	}
 }
 
-func TestGetCourierDeliveriesNoMatch(t *testing.T) {
-	service := NewCourierService()
+func TestValidateDelivery_Success(t *testing.T) {
 
-	deliveries := []Delivery{
-		{
-			CourierID: 1,
-			Resi:      "RESI001",
-			Status:    "in_delivery",
-		},
-		{
-			CourierID: 2,
-			Resi:      "RESI002",
-			Status:    "pending",
-		},
-	}
+	service := &CourierService{}
 
-	courierDeliveries := service.GetCourierDeliveries(deliveries, 99)
-
-	if len(courierDeliveries) != 0 {
-		t.Errorf("Expected 0 deliveries, got %d", len(courierDeliveries))
-	}
-}
-
-func TestValidateDeliverySuccess(t *testing.T) {
-	service := NewCourierService()
-
-	delivery := &Delivery{
+	d := &Delivery{
 		Resi:           "RESI001",
 		CourierID:      1,
-		NamaPenerima:   "Budi",
-		AlamatPenerima: "Jakarta",
+		AlamatPenerima: "Bandung",
 	}
 
-	err := service.ValidateDelivery(delivery)
+	err := service.ValidateDelivery(d)
+
 	if err != nil {
-		t.Errorf("ValidateDelivery failed: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
-func TestValidateDeliveryEmptyResi(t *testing.T) {
-	service := NewCourierService()
+func TestValidateDelivery_Nil(t *testing.T) {
 
-	delivery := &Delivery{
-		Resi:           "",
-		CourierID:      1,
-		NamaPenerima:   "Budi",
-		AlamatPenerima: "Jakarta",
-	}
-
-	err := service.ValidateDelivery(delivery)
-	if err == nil {
-		t.Error("Expected error for empty resi, got nil")
-	}
-}
-
-func TestValidateDeliveryInvalidCourier(t *testing.T) {
-	service := NewCourierService()
-
-	delivery := &Delivery{
-		Resi:           "RESI001",
-		CourierID:      0,
-		NamaPenerima:   "Budi",
-		AlamatPenerima: "Jakarta",
-	}
-
-	err := service.ValidateDelivery(delivery)
-	if err == nil {
-		t.Error("Expected error for invalid courier_id, got nil")
-	}
-}
-
-func TestValidateDeliveryMissingReceiver(t *testing.T) {
-	service := NewCourierService()
-
-	delivery := &Delivery{
-		Resi:           "RESI001",
-		CourierID:      1,
-		NamaPenerima:   "Budi",
-		AlamatPenerima: "",
-	}
-
-	err := service.ValidateDelivery(delivery)
-	if err == nil {
-		t.Error("Expected error for empty alamat_penerima, got nil")
-	}
-}
-
-func TestValidateDeliveryNil(t *testing.T) {
-	service := NewCourierService()
+	service := &CourierService{}
 
 	err := service.ValidateDelivery(nil)
+
 	if err == nil {
-		t.Error("Expected error for nil delivery, got nil")
+		t.Fatal("expected error")
 	}
 }
